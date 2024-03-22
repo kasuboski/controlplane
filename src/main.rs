@@ -1,5 +1,6 @@
-use crate::storage::ResourceStore;
+use crate::{resource::{Generic, ResourceGroup, ResourceMetadata}, storage::ResourceStore};
 use resource::{Namespace, Project, Resource};
+use serde::{Deserialize, Serialize};
 use storage::MemoryStore;
 
 mod resource;
@@ -17,7 +18,28 @@ fn run() -> anyhow::Result<()> {
     store.write(&default)?;
     store.write(&ns)?;
 
-    let read: Namespace = store.read(&ns.resource_ref())?;
+    #[derive(Deserialize, Serialize, Clone)]
+    struct MyResource {
+        pub hello: String,
+    }
+
+    let mine = Generic {
+        group: ResourceGroup {
+            api_version: "josh/v1".to_string(),
+            kind: "MyResource".to_string(),
+        },
+        metadata: ResourceMetadata {
+            name: "mine".to_string(),
+            owner_ref: Some(ns.resource_ref()),
+            ..Default::default()
+        },
+        spec: MyResource {
+            hello: "world".to_string(),
+        },
+    };
+
+    store.write(&mine)?;
+    let read: Generic<MyResource> = store.read(&mine.resource_ref())?;
     println!("read: {}", serde_json::to_string_pretty(&read)?);
     Ok(())
 }
