@@ -1,32 +1,6 @@
 use std::collections::BTreeMap;
 
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-
-#[derive(Clone, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum Resources {
-    Project(Project),
-    Namespace(Namespace),
-    Generic(Ref),
-}
-
-impl Resource for Resources {
-    fn resource_ref(&self) -> Ref {
-        match self {
-            Resources::Project(p) => Ref {
-                api_version: Project::API_VERSION.to_string(),
-                kind: Project::KIND.to_string(),
-                name: p.metadata.name.clone(),
-            },
-            Resources::Namespace(ns) => Ref {
-                api_version: Namespace::API_VERSION.to_string(),
-                kind: Namespace::KIND.to_string(),
-                name: ns.metadata.name.clone(),
-            },
-            Resources::Generic(r) => r.clone(),
-        }
-    }
-}
+use serde::{Deserialize, Serialize};
 
 /// Project represents the broadest tenant. It contains all other resources.
 #[derive(Deserialize, Serialize, Clone)]
@@ -50,6 +24,16 @@ impl Project {
                 name: name.into(),
                 ..Default::default()
             },
+        }
+    }
+}
+
+impl Resource for Project {
+    fn resource_ref(&self) -> Ref {
+        Ref {
+            api_version: Project::API_VERSION.to_string(),
+            kind: Project::KIND.to_string(),
+            name: self.metadata.name.clone(),
         }
     }
 }
@@ -81,6 +65,35 @@ impl Namespace {
     }
 }
 
+impl Resource for Namespace {
+    fn resource_ref(&self) -> Ref {
+        Ref {
+            api_version: Namespace::API_VERSION.to_string(),
+            kind: Namespace::KIND.to_string(),
+            name: self.metadata.name.clone(),
+        }
+    }
+}
+
+/// Generic represents a user given resource
+#[derive(Deserialize, Serialize, Clone)]
+pub struct Generic<T> {
+    #[serde(flatten)]
+    pub group: ResourceGroup,
+    pub metadata: ResourceMetadata,
+    pub spec: T,
+}
+
+impl<T> Resource for Generic<T> {
+    fn resource_ref(&self) -> Ref {
+        Ref {
+            api_version: self.group.api_version.clone(),
+            kind: self.group.kind.clone(),
+            name: self.metadata.name.clone(),
+        }
+    }
+}
+
 #[derive(Deserialize, Serialize, Default, Clone)]
 pub struct ResourceMetadata {
     pub name: String,
@@ -103,6 +116,6 @@ pub struct Ref {
     pub name: String,
 }
 
-pub trait Resource: DeserializeOwned + Serialize + Clone {
+pub trait Resource {
     fn resource_ref(&self) -> Ref;
 }

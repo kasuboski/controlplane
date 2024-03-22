@@ -1,5 +1,5 @@
 use crate::storage::ResourceStore;
-use resource::{Namespace, Project, Resource, Resources};
+use resource::{Namespace, Project, Resource};
 use storage::MemoryStore;
 
 mod resource;
@@ -11,13 +11,13 @@ fn main() {
 
 fn run() -> anyhow::Result<()> {
     let mut store = MemoryStore::default();
-    let default = Resources::Project(Project::new("default"));
-    let ns = Resources::Namespace(Namespace::new(&default.resource_ref(), "default"));
+    let default = Project::new("default");
+    let ns = Namespace::new(&default.resource_ref(), "default");
 
     store.write(&default)?;
     store.write(&ns)?;
 
-    let read: Resources = store.read(&ns.resource_ref())?;
+    let read: Namespace = store.read(&ns.resource_ref())?;
     println!("read: {}", serde_json::to_string_pretty(&read)?);
     Ok(())
 }
