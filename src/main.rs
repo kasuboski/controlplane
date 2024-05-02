@@ -13,6 +13,9 @@ fn main() {
 
 fn run() -> anyhow::Result<()> {
     let mut store = MemoryStore::default();
+    let project_definition = Project::resource_definition();
+    store.write(&project_definition)?;
+
     let default = Project::new("default");
     let ns = Namespace::new(&default.resource_ref(), "default");
 

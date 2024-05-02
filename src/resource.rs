@@ -15,15 +15,85 @@ impl Project {
     const KIND: &'static str = "project";
 
     pub fn new(name: impl Into<String>) -> Self {
+        let mut default = Self::default();
+        default.metadata.name = name.into();
+        default
+    }
+
+    pub fn resource_definition() -> ResourceDefinition {
+        ResourceDefinition {
+            group: "core".to_string(),
+            kind: Project::KIND.to_string(),
+            versions: vec![ResourceVersion {
+                schema: ResourceSchema::JsonSchema(serde_json::json!(
+                    {
+                        "$schema": "http://json-schema.org/draft-07/schema#",
+                        "title": "Generated schema for Root",
+                        "type": "object",
+                        "properties": {
+                          "api_version": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "metadata": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "labels": {
+                                "type": "object",
+                              },
+                              "annotations": {
+                                "type": "object",
+                              },
+                              "owner_ref": {
+                                "type": "object",
+                                "properties": {
+                                  "api_version": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "api_version",
+                                  "kind",
+                                  "name"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "name",
+                            ]
+                          }
+                        },
+                        "required": [
+                          "api_version",
+                          "kind",
+                          "metadata"
+                        ]
+                      }
+                )),
+            }],
+        }
+    }
+}
+
+impl Default for Project {
+    fn default() -> Self {
         Self {
             group: ResourceGroup {
                 api_version: Project::API_VERSION.to_string(),
                 kind: Project::KIND.to_string(),
             },
-            metadata: ResourceMetadata {
-                name: name.into(),
-                ..Default::default()
-            },
+            metadata: ResourceMetadata::default(),
         }
     }
 }
@@ -99,6 +169,8 @@ pub struct ResourceMetadata {
     pub name: String,
     pub labels: BTreeMap<String, String>,
     pub annotations: BTreeMap<String, String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub owner_ref: Option<Ref>,
 }
 
@@ -118,4 +190,69 @@ pub struct Ref {
 
 pub trait Resource {
     fn resource_ref(&self) -> Ref;
+}
+
+/// A ResourceDefinition outlines how a resource is created
+#[derive(Deserialize, Serialize, Clone)]
+pub struct ResourceDefinition {
+    pub group: String,
+    pub kind: String,
+    pub versions: Vec<ResourceVersion>,
+}
+
+impl ResourceDefinition {
+    const API_VERSION: &'static str = "core/v1";
+    const KIND: &'static str = "resourcedefinition";
+}
+
+impl Resource for ResourceDefinition {
+    fn resource_ref(&self) -> Ref {
+        Ref {
+            api_version: ResourceDefinition::API_VERSION.to_string(),
+            kind: ResourceDefinition::KIND.to_string(),
+            name: "root".to_string(), // TODO
+        }
+    }
+}
+
+/// ResourceVersions capture the different schema between versions
+#[derive(Deserialize, Serialize, Clone)]
+pub struct ResourceVersion {
+    pub schema: ResourceSchema,
+}
+
+/// ResourceSchema has the validation options for a resource version
+#[derive(Deserialize, Serialize, Clone)]
+pub enum ResourceSchema {
+    JsonSchema(serde_json::Value),
+}
+
+#[cfg(test)]
+mod tests {
+    use jsonschema::JSONSchema;
+
+    use super::*;
+
+    #[test]
+    fn test_project_definition() {
+        let project_def = Project::resource_definition();
+        let versions = project_def.versions;
+        assert_eq!(versions.len(), 1);
+        let schema = versions.first().expect("couldn't get first version").schema.clone();
+        let schema = match schema {
+            ResourceSchema::JsonSchema(s) => s,
+        };
+
+        let compiled = JSONSchema::compile(&schema).expect("not a valid jsonschema");
+        let project = Project::new("mine");
+        let json = serde_json::to_value(&project).expect("couldn't serialize project");
+        let result = compiled.validate(&json);
+        if let Err(errors) = result {
+            for error in errors {
+                println!("Validation error: {}", error);
+                println!("Instance path: {}", error.instance_path);
+                panic!();
+            }
+        }
+    }
 }
