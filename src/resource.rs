@@ -24,13 +24,16 @@ impl Project {
     pub fn resource_definition() -> ResourceDefinition {
         let schema = schema_for!(Project);
         let value = serde_json::to_value(schema).expect("schema must be valid");
-        ResourceDefinition {
-            group: "core".to_string(),
-            kind: Project::KIND.to_string(),
+        ResourceDefinition::new(ResourceDefinitionSpec {
+            group: "core".into(),
+            names: ResourceNames {
+                kind: Project::KIND.into(),
+            },
             versions: vec![ResourceVersion {
+                name: "v1".into(),
                 schema: ResourceSchema::JsonSchema(value),
             }],
-        }
+        })
     }
 }
 
@@ -143,14 +146,32 @@ pub trait Resource {
 /// A ResourceDefinition outlines how a resource is created
 #[derive(Deserialize, Serialize, Clone)]
 pub struct ResourceDefinition {
-    pub group: String,
-    pub kind: String,
-    pub versions: Vec<ResourceVersion>,
+    #[serde(flatten)]
+    pub group: ResourceGroup,
+    pub metadata: ResourceMetadata,
+    pub spec: ResourceDefinitionSpec,
 }
 
 impl ResourceDefinition {
     const API_VERSION: &'static str = "core/v1";
     const KIND: &'static str = "resourcedefinition";
+
+    fn new(spec: ResourceDefinitionSpec) -> ResourceDefinition {
+        let mut metadata = ResourceMetadata::default();
+        metadata.name = format!(
+            "{}/{}",
+            ResourceDefinition::API_VERSION.to_string(),
+            ResourceDefinition::KIND.to_string()
+        );
+        ResourceDefinition {
+            group: ResourceGroup {
+                api_version: ResourceDefinition::API_VERSION.into(),
+                kind: ResourceDefinition::KIND.into(),
+            },
+            metadata: ResourceMetadata::default(),
+            spec,
+        }
+    }
 }
 
 impl Resource for ResourceDefinition {
@@ -158,15 +179,28 @@ impl Resource for ResourceDefinition {
         Ref {
             api_version: ResourceDefinition::API_VERSION.to_string(),
             kind: ResourceDefinition::KIND.to_string(),
-            name: "root".to_string(), // TODO
+            name: self.metadata.name.clone(),
         }
     }
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct ResourceDefinitionSpec {
+    pub group: String,
+    pub names: ResourceNames,
+    pub versions: Vec<ResourceVersion>,
 }
 
 /// ResourceVersions capture the different schema between versions
 #[derive(Deserialize, Serialize, Clone)]
 pub struct ResourceVersion {
+    pub name: String,
     pub schema: ResourceSchema,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct ResourceNames {
+    pub kind: String,
 }
 
 /// ResourceSchema has the validation options for a resource version
@@ -184,7 +218,7 @@ mod tests {
     #[test]
     fn test_project_definition() {
         let project_def = Project::resource_definition();
-        let versions = project_def.versions;
+        let versions = project_def.spec.versions;
         assert_eq!(versions.len(), 1);
         let schema = versions
             .first()
