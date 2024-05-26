@@ -238,7 +238,11 @@ mod tests {
         let project_def = Project::resource_definition();
         let versions = project_def.versions;
         assert_eq!(versions.len(), 1);
-        let schema = versions.first().expect("couldn't get first version").schema.clone();
+        let schema = versions
+            .first()
+            .expect("couldn't get first version")
+            .schema
+            .clone();
         let schema = match schema {
             ResourceSchema::JsonSchema(s) => s,
         };

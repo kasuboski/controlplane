@@ -1,8 +1,11 @@
-use crate::{resource::{Generic, ResourceGroup, ResourceMetadata}, storage::ResourceStore};
+use crate::storage::memory::MemoryStore;
+use crate::{
+    resource::{Generic, ResourceGroup, ResourceMetadata},
+    storage::ResourceStore,
+};
 use resource::{Namespace, Project, Resource};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use storage::MemoryStore;
 
 mod resource;
 mod storage;
@@ -41,7 +44,7 @@ fn run() -> anyhow::Result<()> {
     struct PipelineRun {
         pub url: String,
         pub pass: bool,
-    } 
+    }
 
     let pipeline_provider = Generic {
         group: ResourceGroup {
@@ -86,9 +89,7 @@ fn run() -> anyhow::Result<()> {
         metadata: ResourceMetadata {
             name: "run-1".to_string(),
             owner_ref: Some(pipeline_config.resource_ref()),
-            labels: BTreeMap::from([
-                ("joshcorp.co/repo".to_string(), "controlplane".to_string()),
-            ]),
+            labels: BTreeMap::from([("joshcorp.co/repo".to_string(), "controlplane".to_string())]),
             ..Default::default()
         },
         spec: PipelineRun {
@@ -121,4 +122,3 @@ fn run() -> anyhow::Result<()> {
     println!("read: {}", serde_json::to_string_pretty(&read)?);
     Ok(())
 }
-
