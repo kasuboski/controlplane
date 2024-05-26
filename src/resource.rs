@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
 
+use schemars::{schema_for, JsonSchema};
 use serde::{Deserialize, Serialize};
 
 /// Project represents the broadest tenant. It contains all other resources.
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, JsonSchema)]
 pub struct Project {
     #[serde(flatten)]
     pub group: ResourceGroup,
@@ -21,66 +22,13 @@ impl Project {
     }
 
     pub fn resource_definition() -> ResourceDefinition {
+        let schema = schema_for!(Project);
+        let value = serde_json::to_value(schema).expect("schema must be valid");
         ResourceDefinition {
             group: "core".to_string(),
             kind: Project::KIND.to_string(),
             versions: vec![ResourceVersion {
-                schema: ResourceSchema::JsonSchema(serde_json::json!(
-                    {
-                        "$schema": "http://json-schema.org/draft-07/schema#",
-                        "title": "Generated schema for Root",
-                        "type": "object",
-                        "properties": {
-                          "api_version": {
-                            "type": "string"
-                          },
-                          "kind": {
-                            "type": "string"
-                          },
-                          "metadata": {
-                            "type": "object",
-                            "properties": {
-                              "name": {
-                                "type": "string"
-                              },
-                              "labels": {
-                                "type": "object",
-                              },
-                              "annotations": {
-                                "type": "object",
-                              },
-                              "owner_ref": {
-                                "type": "object",
-                                "properties": {
-                                  "api_version": {
-                                    "type": "string"
-                                  },
-                                  "kind": {
-                                    "type": "string"
-                                  },
-                                  "name": {
-                                    "type": "string"
-                                  }
-                                },
-                                "required": [
-                                  "api_version",
-                                  "kind",
-                                  "name"
-                                ]
-                              }
-                            },
-                            "required": [
-                              "name",
-                            ]
-                          }
-                        },
-                        "required": [
-                          "api_version",
-                          "kind",
-                          "metadata"
-                        ]
-                      }
-                )),
+                schema: ResourceSchema::JsonSchema(value),
             }],
         }
     }
@@ -109,7 +57,7 @@ impl Resource for Project {
 }
 
 /// Namespace represents a slice of resources.
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, JsonSchema)]
 pub struct Namespace {
     #[serde(flatten)]
     pub group: ResourceGroup,
@@ -164,7 +112,7 @@ impl<T> Resource for Generic<T> {
     }
 }
 
-#[derive(Deserialize, Serialize, Default, Clone)]
+#[derive(Deserialize, Serialize, Default, Clone, JsonSchema)]
 pub struct ResourceMetadata {
     pub name: String,
     pub labels: BTreeMap<String, String>,
@@ -174,14 +122,14 @@ pub struct ResourceMetadata {
     pub owner_ref: Option<Ref>,
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, JsonSchema)]
 pub struct ResourceGroup {
     pub api_version: String,
     pub kind: String,
 }
 
 /// A Ref refers to a resource
-#[derive(Deserialize, Serialize, Clone, Eq, PartialEq, Hash)]
+#[derive(Deserialize, Serialize, Clone, Eq, PartialEq, Hash, JsonSchema)]
 pub struct Ref {
     pub api_version: String,
     pub kind: String,
